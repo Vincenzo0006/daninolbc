@@ -18,41 +18,59 @@ def index():
 def search():
     if not session.get("auth"):
         return redirect("/")
-    criteria = {"loc": "Nice", "price": "", "surface": ""}
+    
+    criteria = {"loc": "Nice", "price": "120000", "surface": "30"}
+    
     if request.method == "POST":
         criteria = {
-            "loc": request.form.get("loc"),
-            "price": request.form.get("price"),
-            "surface": request.form.get("surface")
+            "loc": request.form.get("loc", "Nice"),
+            "price": request.form.get("price", "120000"),
+            "surface": request.form.get("surface", "30")
         }
+    
     annonces = run_search(criteria)
     return render_template("results.html", annonces=annonces, criteria=criteria)
 
 def run_search(c):
-    url = f"https://www.leboncoin.fr/recherche?locations={c['loc']}&real_estate_type=2&price=0-{c['price']}"
-    resp = requests.get(url, headers={"User-Agent": "Mozilla/5.0"})
-    soup = BeautifulSoup(resp.text, "html.parser")
+    url = f"https://www.leboncoin.fr/recherche?category=10&locations={c['loc']}&real_estate_type=2&price=0-{c['price']}"
+    print(f"[DEBUG] URL utilisée : {url}")
+
+    headers = {"User-Agent": "Mozilla/5.0"}
+    try:
+        resp = requests.get(url, headers=headers, timeout=10)
+        soup = BeautifulSoup(resp.text, "html.parser")
+    except Exception as e:
+        print(f"[DEBUG] Erreur lors de la requête : {e}")
+        return []
+
     res = []
     for item in soup.select("a[data-qa-id='aditem_container']"):
-        titre = item.select_one("p[data-qa-id='aditem_title']").text
-        prix_txt = item.select_one("span[data-qa-id='aditem_price']").text.replace("€","").replace(" ","")
-        surface_txt = item.select_one("p[data-qa-id='aditem_description']").text
-        # extraction
         try:
-            prix = int(prix_txt.replace(" ", ""))
+            titre = item.select_one("p[data-qa-id='aditem_title']").text.strip()
+            prix_txt = item.select_one("span[data-qa-id='aditem_price']").text.strip().replace("€", "").replace(" ", "").replace(" ", "")
+            surface_txt = item.select_one("p[data-qa-id='aditem_description']").text.strip()
+            
+            prix = int(prix_txt)
             surface = int(''.join(filter(str.isdigit, surface_txt.split("m²")[0])))
             prix_m2 = prix / surface
-        except:
+
+            print(f"[DEBUG] {titre} — {prix}€ — {surface}m² — {prix_m2:.1f}€/m²")
+
+            if prix_m2 < 3500:
+                res.append({
+                    "titre": titre,
+                    "prix": prix,
+                    "surface": surface,
+                    "prix_m2": round(prix_m2, 1),
+                    "url": "https://www.leboncoin.fr" + item["href"]
+                })
+
+        except Exception as e:
+            print(f"[DEBUG] Erreur sur une annonce : {e}")
             continue
-        if prix_m2 < 3500:
-            res.append({
-                "titre": titre,
-                "prix": prix,
-                "surface": surface,
-                "prix_m2": round(prix_m2,1),
-                "url": "https://www.leboncoin.fr" + item["href"]
-            })
+
+    print(f"[DEBUG] Total annonces valides : {len(res)}")
     return res
 
 if __name__ == "__main__":
-    app.run()
+    app.run(debug=True)
