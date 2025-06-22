@@ -1,0 +1,18 @@
+<!doctype html>
+<html>
+<head><title>Cyrielle - Annonces</title></head>
+<body>
+<h1>Annonces</h1>
+<form method="post">
+  <input name="loc" value="{{ criteria.loc }}" placeholder="Localisation"/>
+  <input name="price" type="number" value="{{ criteria.price }}" placeholder="Prix max"/>
+  <input name="surface" type="number" value="{{ criteria.surface }}" placeholder="Surface min"/>
+  <button type="submit">🔄 Rafraîchir</button>
+</form>
+<ul>
+{% for a in annonces %}
+  <li><strong>{{ a.titre }}</strong> — {{ a.surface }} m² à {{ a.prix }} €, {{ a.prix_m2 }} €/m² — <a href="{{ a.url }}" target="_blank">Voir</a></li>
+{% endfor %}
+</ul>
+</body>
+</html>
